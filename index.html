@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <title>3D Панорамы квартир</title>
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <style>
+    body { margin: 0; overflow: hidden; }
+    .controls {
+      position: fixed;
+      bottom: 30px;
+      left: 0;
+      right: 0;
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      z-index: 100;
+    }
+    button {
+      padding: 12px 24px;
+      font-size: 18px;
+      background: rgba(0,0,0,0.7);
+      color: white;
+      border: none;
+      border-radius: 30px;
+      backdrop-filter: blur(5px);
+      cursor: pointer;
+    }
+    .counter {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: rgba(0,0,0,0.6);
+      color: white;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-family: Arial;
+      z-index: 100;
+    }
+  </style>
+</head>
+<body>
+  <div class="counter">
+    <span id="counter">1</span> / 12
+  </div>
+  <div class="controls">
+    <button id="prev-btn">◀ Предыдущая</button>
+    <button id="next-btn">Следующая ▶</button>
+  </div>
+
+  <a-scene>
+    <!-- 
+      a-sky — это готовая сфера с текстурой внутри.
+      radius — радиус сферы (чем больше, тем "дальше" стены)
+      rotation — поворот панорамы (чтобы смотреть в нужную сторону)
+    -->
+    <a-sky id="panorama-sky" src="panorama_1.jpg" rotation="0 -130 0"></a-sky>
+    
+    <!-- Камера с возможностью оглядываться -->
+    <a-camera look-controls="enabled: true">
+      <a-cursor></a-cursor>
+    </a-camera>
+  </a-scene>
+
+  <script>
+    // Массив с 12 панорамами
+    const panoramas = [
+      'panorama_1.jpg', 'panorama_2.jpg', 'panorama_3.jpg', 'panorama_4.jpg',
+      'panorama_5.jpg', 'panorama_6.jpg', 'panorama_7.jpg', 'panorama_8.jpg',
+      'panorama_9.jpg', 'panorama_10.jpg', 'panorama_11.jpg', 'panorama_12.jpg'
+    ];
+    
+    let currentIndex = 0;
+    const skyEl = document.getElementById('panorama-sky');
+    const counterSpan = document.getElementById('counter');
+    
+    function changePanorama(index) {
+      // Меняем src у a-sky — текстура на сфере обновится автоматически
+      skyEl.setAttribute('src', panoramas[index]);
+      counterSpan.textContent = index + 1;
+    }
+    
+    document.getElementById('prev-btn').onclick = () => {
+      currentIndex = (currentIndex - 1 + panoramas.length) % panoramas.length;
+      changePanorama(currentIndex);
+    };
+    
+    document.getElementById('next-btn').onclick = () => {
+      currentIndex = (currentIndex + 1) % panoramas.length;
+      changePanorama(currentIndex);
+    };
+    
+    // Пролистывание свайпом
+    let touchStartX = 0;
+    document.body.addEventListener('touchstart', (e) => {
+      touchStartX = e.changedTouches[0].screenX;
+    });
+    document.body.addEventListener('touchend', (e) => {
+      const delta = e.changedTouches[0].screenX - touchStartX;
+      if (Math.abs(delta) > 50) {
+        if (delta > 0) {
+          currentIndex = (currentIndex - 1 + panoramas.length) % panoramas.length;
+        } else {
+          currentIndex = (currentIndex + 1) % panoramas.length;
+        }
+        changePanorama(currentIndex);
+      }
+    });
+  </script>
+</body>
+</html>
