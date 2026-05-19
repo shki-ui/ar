@@ -47,7 +47,6 @@
       z-index: 100;
     }
 
-    /* Новый стиль для названия комнаты (в стиле кнопок) */
     .room-title {
       position: fixed;
       top: 20px;
@@ -79,33 +78,25 @@
     <button id="next-btn">Следующая ▶</button>
   </div>
 
-  <!-- Добавлен черный фон для красивого затемнения при смене комнаты -->
   <a-scene background="color: #000000">
-    <!-- 
-      Добавлено: material="transparent: true; opacity: 1" — это позволяет 
-      плавно делать панораму прозрачной при переключении
-    -->
     <a-sky id="panorama-sky" 
            src="panorama_1.jpg" 
            rotation="0 -130 0" 
            material="transparent: true; opacity: 1">
     </a-sky>
     
-    <!-- Камере добавлен ID и базовое значение fov для расчета зума -->
     <a-camera id="main-camera" look-controls="enabled: true" fov="80">
       <a-cursor></a-cursor>
     </a-camera>
   </a-scene>
 
   <script>
-    // Массив с 12 панорамами
     const panoramas = [
       'panorama_1.jpg', 'panorama_2.jpg', 'panorama_3.jpg', 'panorama_4.jpg',
       'panorama_5.jpg', 'panorama_6.jpg', 'panorama_7.jpg', 'panorama_8.jpg',
       'panorama_9.jpg', 'panorama_10.jpg', 'panorama_11.jpg', 'panorama_12.jpg'
     ];
 
-    // Названия комнат (отредактируйте под свои нужды)
     const roomNames = [
       'Прихожая', 'Гостиная', 'Кухня', 'Спальня',
       'Детская', 'Ванная комната', 'Балкон', 'Кабинет',
@@ -116,30 +107,40 @@
     const skyEl = document.getElementById('panorama-sky');
     const counterSpan = document.getElementById('counter');
     const roomTitleEl = document.getElementById('room-title');
-    let isTransitioning = false; // Блокировка кнопок во время анимации
+    let isTransitioning = false; 
     
-    // Функция переключения с плавным затуханием (fade-эффект)
     function changePanorama(index) {
       if (isTransitioning) return;
       isTransitioning = true;
 
-      // 1. Плавно гасим текущую картинку в черный цвет (продолжительность 300 мс)
+      // 1. Мгновенно меняем текст, чтобы интерфейс откликался без задержек
+      roomTitleEl.textContent = roomNames[index];
+      counterSpan.textContent = index + 1;
+
+      // 2. Плавно гасим текущую картинку в черный цвет
       skyEl.setAttribute('animation', 'property: material.opacity; to: 0; dur: 300; easing: easeInOutQuad');
 
+      // 3. Ждем 300мс (пока экран полностью потемнеет), затем грузим новую картинку
       setTimeout(() => {
-        // 2. Меняем источник картинки, название комнаты и счетчик, пока экран темный
-        skyEl.setAttribute('src', panoramas[index]);
-        roomTitleEl.textContent = roomNames[index];
-        counterSpan.textContent = index + 1;
-
-        // 3. Плавно возвращаем прозрачность обратно (даем 100 мс на прогрузку текстуры перед показом)
-        setTimeout(() => {
-          skyEl.setAttribute('animation', 'property: material.opacity; to: 1; dur: 300; easing: easeInOutQuad');
+        const imgLoader = new Image();
+        
+        // Когда картинка полностью скачана и готова к показу
+        imgLoader.onload = () => {
+          skyEl.setAttribute('src', panoramas[index]);
           
+          // Даем движку 50 миллисекунд на рендер текстуры, затем плавно проявляем
           setTimeout(() => {
-            isTransitioning = false; // Разблокируем переключение
-          }, 300);
-        }, 100);
+            skyEl.setAttribute('animation', 'property: material.opacity; to: 1; dur: 300; easing: easeInOutQuad');
+            
+            // Снимаем блокировку кнопок
+            setTimeout(() => {
+              isTransitioning = false;
+            }, 300);
+          }, 50);
+        };
+
+        // Запускаем процесс загрузки новой панорамы
+        imgLoader.src = panoramas[index];
 
       }, 300);
     }
@@ -160,9 +161,7 @@
     const cameraEl = document.getElementById('main-camera');
 
     document.body.addEventListener('touchstart', (e) => {
-      // Если на экране два пальца
       if (e.touches.length === 2) {
-        // Вычисляем начальное расстояние между ними
         initialPinchDistance = Math.hypot(
           e.touches[0].pageX - e.touches[1].pageX,
           e.touches[0].pageY - e.touches[1].pageY
@@ -173,17 +172,15 @@
 
     document.body.addEventListener('touchmove', (e) => {
       if (e.touches.length === 2 && initialPinchDistance) {
-        // Вычисляем текущее расстояние
         const currentPinchDistance = Math.hypot(
           e.touches[0].pageX - e.touches[1].pageX,
           e.touches[0].pageY - e.touches[1].pageY
         );
         
-        // Считаем коэффициент изменения расстояния
         const zoomFactor = initialPinchDistance / currentPinchDistance;
         let newFov = initialFov * zoomFactor;
 
-        // Ограничиваем уровень зума (от 20 - сильное приближение, до 100 - отдаление)
+        // Ограничиваем уровень зума: от 20 (сильное приближение) до 100 (отдаление)
         newFov = Math.max(20, Math.min(newFov, 100));
         
         cameraEl.setAttribute('fov', newFov);
@@ -191,7 +188,6 @@
     }, { passive: true });
 
     document.body.addEventListener('touchend', (e) => {
-      // Если пальцев стало меньше двух, сбрасываем зум-переменные
       if (e.touches.length < 2) {
         initialPinchDistance = null;
       }
