@@ -113,33 +113,26 @@
       if (isTransitioning) return;
       isTransitioning = true;
 
-      // 1. Мгновенно меняем текст, чтобы интерфейс откликался без задержек
       roomTitleEl.textContent = roomNames[index];
       counterSpan.textContent = index + 1;
 
-      // 2. Плавно гасим текущую картинку в черный цвет
       skyEl.setAttribute('animation', 'property: material.opacity; to: 0; dur: 300; easing: easeInOutQuad');
 
-      // 3. Ждем 300мс (пока экран полностью потемнеет), затем грузим новую картинку
       setTimeout(() => {
         const imgLoader = new Image();
         
-        // Когда картинка полностью скачана и готова к показу
         imgLoader.onload = () => {
           skyEl.setAttribute('src', panoramas[index]);
           
-          // Даем движку 50 миллисекунд на рендер текстуры, затем плавно проявляем
           setTimeout(() => {
             skyEl.setAttribute('animation', 'property: material.opacity; to: 1; dur: 300; easing: easeInOutQuad');
             
-            // Снимаем блокировку кнопок
             setTimeout(() => {
               isTransitioning = false;
             }, 300);
           }, 50);
         };
 
-        // Запускаем процесс загрузки новой панорамы
         imgLoader.src = panoramas[index];
 
       }, 300);
@@ -155,13 +148,19 @@
       changePanorama(currentIndex);
     };
     
-    // --- Зум двумя пальцами (Pinch-to-zoom) ---
+    // --- Зум двумя пальцами с авто-возвратом ---
     let initialPinchDistance = null;
     let initialFov = null;
+    let zoomAnimationId = null; // Переменная для хранения анимации возврата
     const cameraEl = document.getElementById('main-camera');
 
     document.body.addEventListener('touchstart', (e) => {
       if (e.touches.length === 2) {
+        // Если пальцы снова на экране, отменяем анимацию авто-возврата
+        if (zoomAnimationId) {
+          cancelAnimationFrame(zoomAnimationId);
+        }
+        
         initialPinchDistance = Math.hypot(
           e.touches[0].pageX - e.touches[1].pageX,
           e.touches[0].pageY - e.touches[1].pageY
@@ -180,7 +179,7 @@
         const zoomFactor = initialPinchDistance / currentPinchDistance;
         let newFov = initialFov * zoomFactor;
 
-        // Ограничиваем уровень зума: от 20 (сильное приближение) до 100 (отдаление)
+        // Ограничиваем уровень зума
         newFov = Math.max(20, Math.min(newFov, 100));
         
         cameraEl.setAttribute('fov', newFov);
@@ -188,8 +187,30 @@
     }, { passive: true });
 
     document.body.addEventListener('touchend', (e) => {
+      // Если убрали хотя бы один палец
       if (e.touches.length < 2) {
         initialPinchDistance = null;
+        
+        // Функция для плавного возврата камеры в исходное положение (fov = 80)
+        const resetZoom = () => {
+          let currentFov = parseFloat(cameraEl.getAttribute('fov')) || 80;
+          
+          // Если уже почти вернулись к 80, ставим точно 80 и останавливаемся
+          if (Math.abs(currentFov - 80) < 0.5) {
+            cameraEl.setAttribute('fov', 80);
+            return;
+          }
+          
+          // Высчитываем плавное приближение к 80 (lerp)
+          let newFov = currentFov + (80 - currentFov) * 0.1;
+          cameraEl.setAttribute('fov', newFov);
+          
+          // Запускаем следующий кадр анимации
+          zoomAnimationId = requestAnimationFrame(resetZoom);
+        };
+        
+        // Запускаем процесс возврата
+        resetZoom();
       }
     });
 
